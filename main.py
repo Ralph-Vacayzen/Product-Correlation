@@ -39,11 +39,44 @@ if file is not None:
         st.dataframe(n, use_container_width=True, hide_index=True)
 
     st.subheader('Question')
-    st.success('What is rented with **' + option + '**?')
-    st.info('How often is a non-**' + option + '** asset rented with a **' + option + '** asset?')
+    st.success('What is rented with **' + option + '**?', icon='🙋🏻‍♂️')
+    st.info('What percentage of orders have **' + option + '** assets on them? (See *Proportion*.)',icon='🤏🏼')
+    st.info('How often is an order strictly for **' + option + '** assets? (See *Singularity*.)',icon='💯')
+    st.info('How often is a non-**' + option + '** asset rented with a **' + option + '** asset? (See *Correlation*.)', icon='🕰️')
 
     st.toast('Scanning rental agreements...')
-    ordersToAsset = df.groupby('Description')['RentalAgreementID'].apply(list)
+    ordersToAsset   = df.groupby('Description')['RentalAgreementID'].apply(list)
+    categoryToOrder = df.groupby('RentalAgreementID')['Product'].apply(set)
+
+    st.divider()
+
+    st.toast('Calculating proportion...')
+    orders           = df['RentalAgreementID'].sort_values().unique()
+    categoryToOrder  = categoryToOrder.to_frame()
+    optionOrders     = dfo['RentalAgreementID'].sort_values().unique()
+
+    st.subheader('Proportion', help='What percentage of orders have the product of interest on them.')
+
+    l, m, r = st.columns(3)
+
+    l.metric('Orders', len(orders))
+    m.metric('**' + option + '** Orders', len(optionOrders))
+    r.metric('**' + option + '** Ratio', round(len(optionOrders) / len(orders) * 100,2))
+
+    st.divider()
+
+    st.toast('Calculating singularity...')
+    optionOnlyOrders = categoryToOrder[categoryToOrder['Product'] == {option}]
+
+    st.subheader('Singularity', help='How often an order is strictly for the product of interest.')
+
+    l, m, r = st.columns(3)
+
+    l.metric('**' + option + '** Orders', len(optionOrders))
+    m.metric('Strictly **' + option + '** Orders', len(optionOnlyOrders))
+    r.metric('Strict Ratio', round(len(optionOnlyOrders) / len(optionOrders) * 100,2))
+
+    st.divider()
 
     st.toast('Calculating correlations...')
     results = [[option,'Asset','Correlation']]
@@ -59,11 +92,11 @@ if file is not None:
     
     results = pd.DataFrame(data=results[1:],columns=results[0])
 
-    st.subheader('Correlation')
+    st.subheader('Correlation', help='How often the product of interest is on the same order as a non-product-of-interest.')
     st.latex(r'''Correlation = \frac{Orders_{assetA} \cap Orders_{assetB}}{Orders_{assetA}}''')
     st.dataframe(results, use_container_width=True, hide_index=True)
 
-    st.subheader('Scrutinization')
+    st.subheader('Correlation Drill-in')
 
     asset = st.selectbox('Asset of Interest', oproducts)
 
