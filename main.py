@@ -20,89 +20,96 @@ if file is not None:
     st.subheader('Product of Interest')
     option = st.selectbox('Product', df.Product.sort_values().unique(),label_visibility='collapsed')
 
-    st.toast('Filtering options...')
-    dfo = df[df.Product == option].sort_values(by='Description')
-    dfn = df[~(df.Product == option)].sort_values(by='Description')
-
-    st.subheader('Product Categories')
+    st.divider()
     
-    oproducts = dfo.Description.unique()
-    nproducts = dfn.Description.unique()
+    st.subheader('Area of Interest')
+    tab1, tab2 = st.tabs(['Product to Product', 'Product to Partner'])
 
-    l, r = st.columns(2)
-    with l.expander('**' + option + '** Assets'):
-        o = pd.DataFrame(oproducts, columns=['Assets']).sort_values(by='Assets').reset_index(drop=True)
-        st.dataframe(o, use_container_width=True, hide_index=True)
+    with tab1:
+        st.subheader('Question')
+        st.success('What is rented with **' + option + '**?', icon='🙋🏻‍♂️')
+        st.info('What percentage of orders have **' + option + '** assets on them? (See *Proportion*.)',icon='🤏🏼')
+        st.info('How often is an order strictly for **' + option + '** assets? (See *Singularity*.)',icon='💯')
+        st.info('How often is a non-**' + option + '** asset rented with a **' + option + '** asset? (See *Correlation*.)', icon='🕰️')
 
-    with r.expander('Everything Else Assets'):
-        n = pd.DataFrame(nproducts, columns=['Assets']).sort_values(by='Assets').reset_index(drop=True)
-        st.dataframe(n, use_container_width=True, hide_index=True)
+        st.divider()
 
-    st.subheader('Question')
-    st.success('What is rented with **' + option + '**?', icon='🙋🏻‍♂️')
-    st.info('What percentage of orders have **' + option + '** assets on them? (See *Proportion*.)',icon='🤏🏼')
-    st.info('How often is an order strictly for **' + option + '** assets? (See *Singularity*.)',icon='💯')
-    st.info('How often is a non-**' + option + '** asset rented with a **' + option + '** asset? (See *Correlation*.)', icon='🕰️')
+        st.toast('Filtering options...')
+        dfo = df[df.Product == option].sort_values(by='Description')
+        dfn = df[~(df.Product == option)].sort_values(by='Description')
 
-    st.toast('Scanning rental agreements...')
-    ordersToAsset   = df.groupby('Description')['RentalAgreementID'].apply(list)
-    categoryToOrder = df.groupby('RentalAgreementID')['Product'].apply(set)
+        st.subheader('Assets of Interest')
+        
+        oproducts = dfo.Description.unique()
+        nproducts = dfn.Description.unique()
 
-    st.divider()
+        l, r = st.columns(2)
+        with l.expander('**' + option + '** Assets'):
+            o = pd.DataFrame(oproducts, columns=['Assets']).sort_values(by='Assets').reset_index(drop=True)
+            st.dataframe(o, use_container_width=True, hide_index=True)
 
-    st.toast('Calculating proportion...')
-    orders           = df['RentalAgreementID'].sort_values().unique()
-    categoryToOrder  = categoryToOrder.to_frame()
-    optionOrders     = dfo['RentalAgreementID'].sort_values().unique()
+        with r.expander('Everything Else Assets'):
+            n = pd.DataFrame(nproducts, columns=['Assets']).sort_values(by='Assets').reset_index(drop=True)
+            st.dataframe(n, use_container_width=True, hide_index=True)
 
-    st.subheader('Proportion', help='What percentage of orders have the product of interest on them.')
+        st.toast('Scanning rental agreements...')
+        ordersToAsset   = df.groupby('Description')['RentalAgreementID'].apply(list)
+        categoryToOrder = df.groupby('RentalAgreementID')['Product'].apply(set)
 
-    l, m, r = st.columns(3)
+        st.divider()
 
-    l.metric('Orders', len(orders))
-    m.metric('**' + option + '** Orders', len(optionOrders))
-    r.metric('**' + option + '** Ratio', round(len(optionOrders) / len(orders) * 100,2))
+        st.toast('Calculating proportion...')
+        orders           = df['RentalAgreementID'].sort_values().unique()
+        categoryToOrder  = categoryToOrder.to_frame()
+        optionOrders     = dfo['RentalAgreementID'].sort_values().unique()
 
-    st.divider()
+        st.subheader('Proportion', help='What percentage of orders have the product of interest on them.')
 
-    st.toast('Calculating singularity...')
-    optionOnlyOrders = categoryToOrder[categoryToOrder['Product'] == {option}]
+        l, m, r = st.columns(3)
 
-    st.subheader('Singularity', help='How often an order is strictly for the product of interest.')
+        l.metric('Orders', len(orders))
+        m.metric('**' + option + '** Orders', len(optionOrders))
+        r.metric('**' + option + '** Ratio', round(len(optionOrders) / len(orders) * 100,2))
 
-    l, m, r = st.columns(3)
+        st.divider()
 
-    l.metric('**' + option + '** Orders', len(optionOrders))
-    m.metric('Strictly **' + option + '** Orders', len(optionOnlyOrders))
-    r.metric('Strict Ratio', round(len(optionOnlyOrders) / len(optionOrders) * 100,2))
+        st.toast('Calculating singularity...')
+        optionOnlyOrders = categoryToOrder[categoryToOrder['Product'] == {option}]
 
-    st.divider()
+        st.subheader('Singularity', help='How often an order is strictly for the product of interest.')
 
-    st.toast('Calculating correlations...')
-    results = [[option,'Asset','Correlation']]
+        l, m, r = st.columns(3)
 
-    for optionproduct in oproducts:
-        oorders = ordersToAsset[optionproduct]
+        l.metric('**' + option + '** Orders', len(optionOrders))
+        m.metric('Strictly **' + option + '** Orders', len(optionOnlyOrders))
+        r.metric('Singularity Ratio', round(len(optionOnlyOrders) / len(optionOrders) * 100,2))
 
-        for notproduct in nproducts:
-            norders = ordersToAsset[notproduct]
-            shared  = set(oorders).intersection(norders)
-            ratio   = round(len(shared) / len(oorders) * 100, 2)
-            results.append([optionproduct,notproduct,ratio])
-    
-    results = pd.DataFrame(data=results[1:],columns=results[0])
+        st.divider()
 
-    st.subheader('Correlation', help='How often the product of interest is on the same order as a non-product-of-interest.')
-    st.latex(r'''Correlation = \frac{Orders_{assetA} \cap Orders_{assetB}}{Orders_{assetA}}''')
-    st.dataframe(results, use_container_width=True, hide_index=True)
+        st.toast('Calculating correlations...')
+        results = [[option,'Asset','Correlation']]
 
-    st.subheader('Correlation Drill-in')
+        for optionproduct in oproducts:
+            oorders = ordersToAsset[optionproduct]
 
-    asset = st.selectbox('Asset of Interest', oproducts)
+            for notproduct in nproducts:
+                norders = ordersToAsset[notproduct]
+                shared  = set(oorders).intersection(norders)
+                ratio   = round(len(shared) / len(oorders) * 100, 2)
+                results.append([optionproduct,notproduct,ratio])
+        
+        results = pd.DataFrame(data=results[1:],columns=results[0])
 
-    result = results[results[option] == asset]
+        st.subheader('Correlation', help='How often the product of interest is on the same order as a non-product-of-interest.')
+        st.latex(r'''Correlation = \frac{Orders_{assetA} \cap Orders_{assetB}}{Orders_{assetA}}''')
+        st.dataframe(results, use_container_width=True, hide_index=True)
 
-    result = result.sort_values(by='Correlation', ascending=False)
+        st.subheader('Correlation Drill-in')
 
-    st.dataframe(result, use_container_width=True, hide_index=True)
+        asset = st.selectbox('Asset of Interest', oproducts)
 
+        result = results[results[option] == asset]
+
+        result = result.sort_values(by='Correlation', ascending=False)
+
+        st.dataframe(result, use_container_width=True, hide_index=True)
