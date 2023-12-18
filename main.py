@@ -113,3 +113,61 @@ if file is not None:
         result = result.sort_values(by='Correlation', ascending=False)
 
         st.dataframe(result, use_container_width=True, hide_index=True)
+    
+
+    with tab2:
+        st.subheader('Question')
+        st.success('How often do our partners rent **' + option + '** assets?', icon='🙋🏻‍♂️')
+        st.info('What percentage of partner orders have **' + option + '** assets on them? (See *Proportion*.)',icon='🤏🏼')
+        st.info('How often is a partner order strictly for **' + option + '** assets? (See *Singularity*.)',icon='💯')
+
+        st.divider()
+
+        st.subheader('Partners')
+        partner_upload = st.file_uploader('Partner Data','csv')
+
+        if partner_upload is not None:
+            partners = pd.read_csv(partner_upload)
+            st.dataframe(partners, use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            st.toast('Calculating proportion...')
+
+            def is_a_partner_order(row):
+                return (row.CustomerNumber in partners.CID) & (row.CustomerNumber != 1)
+            
+            df['isPartnerOrder'] = df.apply(is_a_partner_order, axis=1)
+            dfp = df[df.isPartnerOrder]
+            dfpo = dfp[dfp.Product == option].sort_values(by='Description')
+            
+            st.toast('Scanning rental agreements...')
+            partnerOrdersToAsset   = dfp.groupby('Description')['RentalAgreementID'].apply(list)
+            partnerCategoryToOrder = dfp.groupby('RentalAgreementID')['Product'].apply(set)
+
+
+            st.toast('Calculating proportion...')
+            partnerOrders           = dfp['RentalAgreementID'].sort_values().unique()
+            partnerCategoryToOrder  = partnerCategoryToOrder.to_frame()
+            partnerOptionOrders     = dfpo['RentalAgreementID'].sort_values().unique()
+
+            st.subheader('Proportion', help='What percentage of partner orders have the product of interest on them.')
+
+            l, m, r = st.columns(3)
+
+            l.metric('Orders', len(partnerOrders))
+            m.metric('**' + option + '** Orders', len(partnerOptionOrders))
+            r.metric('**' + option + '** Ratio', round(len(partnerOptionOrders) / len(partnerOrders) * 100,2))
+
+            st.divider()
+
+            st.toast('Calculating singularity...')
+            partnerOptionOnlyOrders = partnerCategoryToOrder[partnerCategoryToOrder['Product'] == {option}]
+
+            st.subheader('Singularity', help='How often a partner order is strictly for the product of interest.')
+
+            l, m, r = st.columns(3)
+
+            l.metric('**' + option + '** Orders', len(partnerOptionOrders))
+            m.metric('Strictly **' + option + '** Orders', len(partnerOptionOnlyOrders))
+            r.metric('Singularity Ratio', round(len(partnerOptionOnlyOrders) / len(partnerOptionOrders) * 100,2))
